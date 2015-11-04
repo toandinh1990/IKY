@@ -178,8 +178,9 @@ bool Exit_Learning_tag= FALSE;
 bool Have_Accl = FALSE;
 bool Wdt_Reset = FALSE;
 u8  ACCL_EN = 0;
+uint8_t Check_Dat;
 //bool Data_Accl[8]= {FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE};
-u8 Data_Accl=0;
+//u8 Data_Accl=0;
 
 //u8 Data_RF[12];
 u16 Data_RF[12];
@@ -215,10 +216,15 @@ bool Process_Tag(void);
 u8 Process_433(void);
 void Leaning_RF433(uint16_t Address);
 bool Receive_433(void);
+
 void MMA7660_Write(u8 Regis,u8 data);
 void Delay_MMA7660(void);
 u8 MMA7660_Init(void);
-void MMA7660_Read(u8 Regis);
+uint8_t MMA7660_Read(u8 Regis);
+void i2c_start (void);
+void i2c_stop (void);
+void i2c_write (uint8_t output_data);
+uint8_t i2c_read (void);
 //bool Writer_Eeprom(u32 Adress, u8 Data[],Number)
 /* Public functions ----------------------------------------------------------*/
 
@@ -669,8 +675,8 @@ __Thoat:
 					if(Time_ACCL_ON - Time_Check_Accl > 2000000 && ACCL_EN)
 					{
 						Time_Check_Accl = Time_ACCL_ON;
-						MMA7660_Read(TILT_REG);
-						if(Data_Accl==0xFF||Data_Accl==0x00)
+						Check_Dat = MMA7660_Read(TILT_REG);
+						if(Check_Dat==0xFF||Check_Dat==0x00)
 						{
 							MMA7660_Init();						
 						}
@@ -1053,247 +1059,192 @@ u8 MMA7660_Init(void)
 {
 		u8 retry = 5;
 		Have_Accl = 0;
+
 		GPIO_WriteHigh(ACCL_EN_PORT, ACCL_EN_PIN);// tat nguon accl
 		Delay(50000);
 		GPIO_WriteLow(ACCL_EN_PORT, ACCL_EN_PIN);// bat nguon accl
 		Delay(50000);
-	//while(retry--)
-	//{
+	while(retry--)
+	{
 		MMA7660_Write(MODE_REG, 0x00);
-		//MMA7660_Read(MODE_REG);
-		//if(Data_Accl!=0x00)continue;
-		
+
+
 		MMA7660_Write(MODE_REG, 0x00);
-		//MMA7660_Read(MODE_REG);
-		//if(Data_Accl!=0x00)continue;
-		
+		Check_Dat = MMA7660_Read(MODE_REG);
+		if(Check_Dat != 0) continue;
+
+
 		MMA7660_Write(SPCNT_REG, 0x00);
-		//MMA7660_Read(SPCNT_REG);
-		//if(Data_Accl!=0x00)continue;
-		
+		Check_Dat = MMA7660_Read(SPCNT_REG);
+		if(Check_Dat != 0) continue;
+
+
 		MMA7660_Write(INTSU_REG, 0xe7);
-		//MMA7660_Read(INTSU_REG);
-		//if(Data_Accl!=0xe7)continue;
-		
+		Check_Dat = MMA7660_Read(INTSU_REG);
+		if(Check_Dat != 0xe7) continue;
+
+
 		MMA7660_Write(PDET_REG, 0x01);
-		//MMA7660_Read(PDET_REG);
-		//if(Data_Accl!=0x01)continue;
-		
+		Check_Dat = MMA7660_Read(PDET_REG);
+		if(Check_Dat != 0x01) continue;
+
+
 		MMA7660_Write(SR_REG, 0x01);
-		//MMA7660_Read(SR_REG);
-		//if(Data_Accl!=0x01)continue;
-		
+		Check_Dat = MMA7660_Read(SR_REG);
+		if(Check_Dat != 0x01) continue;
+
+
 		MMA7660_Write(PD_REG, 0x00);
-		//MMA7660_Read(PD_REG);
-		//if(Data_Accl!=0x00)continue;
-		
+		Check_Dat = MMA7660_Read(PD_REG);
+		if(Check_Dat != 0x00) continue;
+
+
 		MMA7660_Write(MODE_REG,0x01);
-		//MMA7660_Read(MODE_REG);
-		//if(Data_Accl!=0x01)continue;
-		
-		MMA7660_Read(TILT_REG);
+		Check_Dat = MMA7660_Read(MODE_REG);
+		if(Check_Dat != 0x01) continue;
+
+
+		Check_Dat = MMA7660_Read(TILT_REG);			
 		Delay(50000);
 		ACCL_EN = 1;
 		Time_ACCL_ON = 0;
 		Have_Accl = 0;
 		return 1;
-	//}
+	}
 	ACCL_EN = 0;
 	return 0;
-	//*/
-/*
-	   MMA7660_Write(MODE_REG,0x00);          //Stops the MMA7660 for configuration
-   MMA7660_Write(SR_REG,0x02);            //32 SPS without Filteringv
-   MMA7660_Write(INTSU_REG,0x10);         //Enables Interrupts each axis update
-   MMA7660_Write(MODE_REG,0x11);          //Run mode
-	 //*/  
-	
 }
 void MMA7660_Write(u8 Regis,u8 data)
 {
-	u8 i = 0,adress = 0x98;//4C and write comment
-	//start conditon
-	//while(1);
-	SDA0;
-	Delay_MMA7660();
-	SCL0;
-	Delay_MMA7660();
-	//BAT DAU TRUYEN DIA CHI CHIP
-	for(i=0;i<8;i++)
-	{
-		if(Databit[i]&adress)SDA1;
-		else SDA0;	
-		Delay_MMA7660();
-		SCL1;
-		Delay_MMA7660();
-		SCL0;	
-	}
-	SDAIN;
-	Delay_MMA7660();
-	SCL1;
-	Delay_MMA7660();//DOC ACK O SAU DAY NE.
-	//if(!SDA)
-	SCL0;// den day okie roi nhe.
-	SDAOUT;
 	
-	Delay_MMA7660();	
-		
-	//BAT DAU TRUYEN DIA CHI THANH GHI
-	for(i=0;i<8;i++)
-	{
-		if(Databit[i]&Regis)SDA1;
-		else SDA0;	
-		Delay_MMA7660();
-		SCL1;
-		Delay_MMA7660();
-		SCL0;	
-	}
-	//SDA0; // check lai ack  doc bit tu thiet bi slave.
-	SDAIN;
-	
-	Delay_MMA7660();
-	SCL1;
-	Delay_MMA7660();//DOC ACK O SAU DAY NE.
-	SCL0;
-
-	SDAOUT;	
-
-	Delay_MMA7660();
-	Delay_MMA7660();
-	//BAT DAU TRUYEN DU LIEU
-	for(i=0;i<8;i++)
-	{
-		if(Databit[i]&data)SDA1;
-		else SDA0;	
-		Delay_MMA7660();
-		SCL1;
-		Delay_MMA7660();
-		SCL0;	
-	}
-	
-	//SDA0; // check lai ack  doc bit tu thiet bi slave.
-	SDAIN;
-	Delay_MMA7660();
-	SCL1;
-	Delay_MMA7660();//DOC ACK O SAU DAY NE.
-	SCL0;
-	
-	GPIO_Init(SDA_PORT,SDA_PIN,GPIO_MODE_OUT_PP_LOW_FAST);//out day roi ne
-	//SDAOUT;	
-	Delay_MMA7660();
-	//STOP CONDITION
-	SCL1;
-	Delay_MMA7660();	
-	SDA1;
-	Delay(10);	
+	//void i2c_start (void)//void i2c_stop (void)//void i2c_write (uint8_t output_data)//uint8_t i2c_read (void)
+	i2c_start();
+	i2c_write(0x98);
+	i2c_write(Regis);
+	i2c_write(data);
+	i2c_stop();
 }
-void MMA7660_Read(u8 Regis)
+
+uint8_t MMA7660_Read(u8 Regis)
 {
-	u8 i = 0,adress = 0x98;//4C and write comment
-	//start conditon
-	//while(1);
-	SDA0;
-	Delay_MMA7660();
-	SCL0;
-	Delay_MMA7660();
-	//BAT DAU TRUYEN DIA CHI CHIP
-	for(i=0;i<8;i++)
-	{
-		if(Databit[i]&adress)SDA1;
-		else SDA0;	
-		Delay_MMA7660();
-		SCL1;
-		Delay_MMA7660();
-		SCL0;	
-	}
-	SDAIN;
-	Delay_MMA7660();
-	SCL1;
-	Delay_MMA7660();//DOC ACK O SAU DAY NE.
-	//if(!SDA)
-	SCL0;// den day okie roi nhe.
-	SDAOUT;
-	
-	Delay_MMA7660();	
-	Delay_MMA7660();	
-		
-	//BAT DAU TRUYEN DIA CHI THANH GHI
-	for(i=0;i<8;i++)
-	{
-		if(Databit[i]&Regis)SDA1;
-		else SDA0;	
-		Delay_MMA7660();
-		SCL1;
-		Delay_MMA7660();
-		SCL0;	
-	}
-	//SDA0; // check lai ack  doc bit tu thiet bi slave.
-	SDAIN;
-	Delay_MMA7660();
-	SCL1;
-	Delay_MMA7660();//DOC ACK O SAU DAY NE.
-	SDAOUT;	
-	SCL0;
-
-	
-	Delay_MMA7660();
-//repeap start 
-SCL1;
-Delay_MMA7660();
-SDA0;
-Delay_MMA7660();
-SCL0;
-Delay_MMA7660();
-//////////////
-	for(i=0;i<8;i++)
-	{
-		if(Databit[i]& 0x99)SDA1;
-		else SDA0;	
-		Delay_MMA7660();
-		SCL1;
-		Delay_MMA7660();
-		SCL0;	
-	}
-	SDAIN;
-	Delay_MMA7660();
-	SCL1;
-	Delay_MMA7660();//DOC ACK O SAU DAY NE.
-	//if(!SDA)
-	SCL0;// den day okie roi nhe.
-	Delay_MMA7660();//DOC ACK O SAU DAY NE.
-///doc du lieu nhe
-Data_Accl = 0;
-	for(i=0;i<7;i++)
-	{
-		Data_Accl <<= 1;
-		SCL1;
-		Delay_MMA7660();
-		if(SDA) Data_Accl |= (1<<0);
-		else Data_Accl &=~(1<<0);
-		SCL0;
-		Delay_MMA7660();
-	}
-		Data_Accl <<= 1;
-		SCL1;
-		Delay_MMA7660();
-		if(SDA) Data_Accl |= (1<<0);
-		else Data_Accl &=~(1<<0);
-		GPIO_Init(SDA_PORT,SDA_PIN,GPIO_MODE_OUT_PP_LOW_FAST);//out day roi ne
-		SCL0;
-		Delay_MMA7660();
-	
-///NAK	
-
-	SCL1;
-	Delay_MMA7660();
-	SCL0;
-	Delay_MMA7660();		
-	//STOP CONDITION
-	SCL1;
-	Delay_MMA7660();	
-	SDA1;
-	Delay(10);	
+	uint8_t Data;
+	i2c_start();
+	i2c_write(0x98);
+	i2c_write(Regis);
+	i2c_start();
+	i2c_write(0x99);
+	Data = i2c_read();
+	i2c_stop();
+	return Data;
 }
+//------------------------------------------------------------------------------
+// 	Routine:	i2c_start
+//	Inputs:		none
+//	Outputs:	none
+//	Purpose:	Sends I2C Start Trasfer - State "B"
+//------------------------------------------------------------------------------
+void i2c_start (void)//void i2c_stop (void)//void i2c_write (uint8_t output_data)//uint8_t i2c_read (void)
+{
+	SDAOUT;
+	//SDATA = HIGH;							// Set data line high
+	SDA1;	
+	Delay_MMA7660();	
+	//SCLK = HIGH;							// Set clock line high
+	SCL1;
+	Delay_MMA7660();	
+	//SDATA = LOW;							// Set data line low (START SIGNAL)
+	SDA0;	
+	Delay_MMA7660();	
+	//SCLK = LOW;								// Set clock line low
+	SCL0;
+	Delay_MMA7660();	
+}
+
+//------------------------------------------------------------------------------
+// 	Routine:	i2c_stop
+//	Inputs:		none
+//	Outputs:	none
+//	Purpose:	Sends I2C Stop Trasfer - State "C"
+//------------------------------------------------------------------------------
+void i2c_stop (void)//void i2c_write (uint8_t output_data)//uint8_t i2c_read (void)
+{
+	unsigned char input_var;
+	SDAOUT;
+//	SCLK = LOW;								// Set clock line low
+	SCL0;
+	Delay_MMA7660();	
+	//SDATA = LOW;							// Set data line low
+	SDA0;
+	Delay_MMA7660();	
+	//SCLK = HIGH;							// Set clock line high
+	SCL1;
+	Delay_MMA7660();	
+	//SDATA = HIGH;							// Set data line high (STOP SIGNAL)
+	SDA1;
+	Delay_MMA7660();	
+	//input_var = SDATA;						// Put port pin into HiZ
+}
+
+//------------------------------------------------------------------------------
+// 	Routine:	i2c_write
+//	Inputs:		output byte
+//	Outputs:	none
+//	Purpose:	Writes data over the I2C bus
+//------------------------------------------------------------------------------
+void i2c_write (uint8_t output_data)//uint8_t i2c_read (void)
+{
+	uint8_t index;
+	SDAOUT;	
+	for(index=0;index<8;index++)
+	{
+		if(Databit[index]&output_data)SDA1;
+		else SDA0;	
+		Delay_MMA7660();
+		SCL1;
+		Delay_MMA7660();
+		SCL0;	
+	}	
+	//index = SDATA;							// Put data pin into read mode
+	SDAIN;
+	//	SCLK = HIGH;   		        			// Clock the ACK from the I2C Bus
+	SCL1;
+	Delay_MMA7660();//DOC ACK O SAU DAY NE.
+//	if(!SDA)
+//	printf("Read ACk 3 \r\n");
+//	else printf("No Read ACk 3\r\n");		
+	//SCLK = LOW;		
+	SCL0;// den day okie roi nhe.
+	Delay_MMA7660();
+}
+
+//------------------------------------------------------------------------------
+// 	Routine:	i2c_read
+//	Inputs:		none
+//	Outputs:	input byte
+//	Purpose:	Reads data from the I2C bus
+//------------------------------------------------------------------------------
+uint8_t i2c_read (void)
+{
+	uint8_t index,Data_I2C;
+
+//	index = SDATA;							// Put data pin into read mode
+	SDAIN;
+	Data_I2C = 0x00;
+	for(index = 0; index < 8; index++)  	// Send 8 bits to the I2C Bus
+	{
+		Data_I2C <<= 1;					// Shift the byte by one bit
+		//SCLK = HIGH;           				// Clock the data into the I2C Bus
+    SCL1;
+		Delay_MMA7660();  
+		if(SDA)		Data_I2C++;
+		// Data_I2C |= SDA; 		   		// Input the data from the I2C Bus
+		//SCLK = LOW;		
+		SCL0;
+		Delay_MMA7660();
+	}
+   return Data_I2C;
+}
+
 void Delay_MMA7660(void)
 {
 	//u8 i =0,k=0;
