@@ -165,11 +165,12 @@ u8 User[2][5]= {0,0,0,0,0,
 uint8_t On_Off_Bell = 0x00;
 
 const u8 Databit[8] ={0x80,0x40,0x20,0x10,0x08,0x04,0x02,0x01};
+
 const u8 Admin_433[3]={0x1D,0x75,0x30};//0-H;2-L;3-L. tu thiet ke lay. 48 1d 75 30
-u8 User_433[4][3]={0,0,0,
-									 0,0,0,
-									 0,0,0,
-									 0,0,0};
+u8 User_433[2][3]={0,0,0,
+									 0,0,0};//toi da 2 remote.
+									 
+									 
 bool En_Signal = FALSE;
 bool Tag_Admin_433 = TRUE;
 bool tem1=FALSE,tem2=FALSE;
@@ -182,9 +183,9 @@ uint8_t Check_Dat;
 //bool Data_Accl[8]= {FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE};
 //u8 Data_Accl=0;
 
-//u8 Data_RF[12];
-u16 Data_RF[12];
-u8 Data_433[3];
+u8 Data_RF[6];
+//u16 Data_RF[12];
+//u8 Data_433[3];
 
 u8 State_433 = 0;
 extern bool Get_RF433;
@@ -210,7 +211,6 @@ void Delay(u32 nTime);
 uint32_t LSIMeasurment(void);
 void IWDG_Config(void);
 void Learing_Tag_RFID(uint16_t Address);//address store data.
-bool Get_Data_RF433(void);
 bool Check_SM_Status(void);
 bool Process_Tag(void);
 u8 Process_433(void);
@@ -488,7 +488,7 @@ void main(void)
 							while(!tem1 && !tem2 && ((Counter1-Time_Reg_Tag)<300000))
 							{
 								tem1 = Get_Id();
-								tem2 = Get_Data_RF433();
+								if(Get_RF433) tem2 = TRUE;
 							}
 							if(tem1==TRUE)
 							{
@@ -641,6 +641,21 @@ void main(void)
 						}
 						MMA7660_Read(TILT_REG);
 					}
+					/*
+					if(Get_RF433)//test remote.
+					{
+						for(i=0;i<3;i++)
+						{
+							GPIO_WriteHigh(BELL_PORT, BELL_PIN);// On  Bell											
+							GPIO_WriteHigh(SIGNAL_PORT, SIGNAL_PIN);// On  Bell
+							Delay(30000);
+							GPIO_WriteLow(SIGNAL_PORT, SIGNAL_PIN);// Off Bell
+							GPIO_WriteLow(BELL_PORT, BELL_PIN);// Off Bell
+							Delay(30000);
+						}
+						Get_RF433 = FALSE;					
+					}
+					*/
 					j = Process_433();
 __Thoat: 						
 					if(j==2)//user tag 433
@@ -1301,7 +1316,7 @@ void Leaning_RF433(uint16_t Address)
 	Time_Reg_Tag = Counter1;
 	if(!Exit_Learning_tag)
 	{ 
-		while(!Get_Data_RF433())// Ghi the User 1 
+		while(!Get_RF433)// Ghi the User 1 
 		{
 			if(Counter1-Time_Reg_Tag >500000)
 			{
@@ -1334,7 +1349,7 @@ void Leaning_RF433(uint16_t Address)
 		for(i=0;i<3;i++)
 		{
 			IWDG_ReloadCounter();
-			FLASH_ProgramByte(Address+i, Data_433[i]);// Luu the vao bo nho		
+			FLASH_ProgramByte(Address+i, Data_RF[i]);// Luu the vao bo nho		
 			IWDG_ReloadCounter();
 		}
 		for(i=0;i<3;i++) User_433[0][i] = FLASH_ReadByte(0x4040+i);	
@@ -1442,71 +1457,6 @@ void Learing_Tag_RFID(uint16_t Address)//address store data.
 		Bell_Ring();//Bell_Ring(1,10,1);
 	}
 }
-bool Get_Data_RF433(void)
-{
-	u8 k = 0,i=0;
-	if(Get_RF433)
-	{
-		//disableInterrupts();
-		/*
-		for(i=0;i<12;i++)
-		{
-			printf("%d|",(u16)Data_RF[i]);
-		}
-		printf("\r\n");
-		*/
-		for(i=0;i<3;i++)
-		{
-			Data_433[i]=0x00;
-		}
-		for(i=0;i<12;i++)
-		{
-			k=i/4;
-			switch(Data_RF[i])
-			{
-				case 0://00
-					Data_433[k] <<= 1;
-					Data_433[k] &=~(1<<0);
-					Data_433[k] <<= 1;
-					Data_433[k] &=~(1<<0);							
-					break;
-				case 1://11
-					Data_433[k] <<= 1;
-					Data_433[k] |= (1<<0);
-					Data_433[k] <<= 1;
-					Data_433[k] |= (1<<0);							
-					break;
-				case 2://01
-					Data_433[k] <<= 1;
-					Data_433[k] &=~(1<<0);	
-					Data_433[k] <<= 1;
-					Data_433[k] |= (1<<0);							
-					break;
-				case 3://10	
-					Data_433[k] <<= 1;
-					Data_433[k] |= (1<<0);	
-					Data_433[k] <<= 1;
-					Data_433[k] &=~(1<<0);					
-					break;
-				case 4://11 Giai ma ra bao nhieu ko quan trong. Quan trong la Ma hoa tin hieu
-					Data_433[k] <<= 1;
-					Data_433[k] |= (1<<0);
-					Data_433[k] <<= 1;
-					Data_433[k] |= (1<<0);	
-					break;
-				default:break;
-			}					
-		}
-		for(i=0;i<3;i++)
-		{
-		//	printf("%d\r\n",(u16)Data_433[i]);
-		}
-		Get_RF433 = FALSE;
-		//enableInterrupts();
-		return TRUE;
-	}
-return FALSE;
-}
 bool Process_Tag(void)
 {
 	u8 i,j;
@@ -1551,25 +1501,27 @@ bool Process_Tag(void)
 u8 Process_433(void)
 {
 	char i,j;
-	if(Get_Data_RF433())
+	if(Get_RF433)//so sanh nhe.
 	{
-		for(i=0;i<4;i++)
+		for(i=0;i<2;i++)
 		{
 			Tag_User_433[i] = TRUE;
 			for(j=0;j<3;j++)
 			{
-				if(Data_433[j]!=User_433[i][j]) Tag_User_433[i] = FALSE;
+				if(Data_RF[j]!=User_433[i][j]) Tag_User_433[i] = FALSE;
 			}
 		}
 		Tag_Admin_433 = TRUE;
 		for(j=0;j<3;j++)
 		{
-			if(Data_433[j]!=Admin_433[j]) Tag_Admin_433 = FALSE;
+			if(Data_RF[j]!=Admin_433[j]) Tag_Admin_433 = FALSE;
 		}
+		Get_RF433 = FALSE;
 		if(Tag_Admin_433) return 1;
-		for(i=0;i<4;i++)
+		if(Tag_User_433[0] || Tag_User_433[1])
 		{
-			if(Tag_User_433[i]) return i+2;
+			if((Data_RF[5] & 0x0F) == 0x01)  return 3;
+			else return 2;
 		}
 		return 0;
 	}	

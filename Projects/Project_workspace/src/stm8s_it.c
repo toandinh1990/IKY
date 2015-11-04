@@ -33,10 +33,11 @@ u16 Max_Low_433 = 0;
 u16 Min_High_433 = 0;
 u16 Max_High_433 = 0; */
 
-u16 Min_High_433=120;//120
-u16 Max_High_433= 140;//140
-u16 Min_Low_433 = 20;//30
-u16 Max_Low_433 = 80;//50
+u16 Min_Low_433 = 5;
+u16 Max_Low_433 = 50;
+
+u16 Min_High_433 = 80;
+u16 Max_High_433 = 150;
 //u16 Min_Low_Sys = 30;//30
 //u16 Max_Low_Sys  =200;//50
 //u16 Min_High_Sys=  500;//1330
@@ -47,7 +48,7 @@ u16 Max_High	= 0;//60
 u16 Min_Low		= 0;//15
 u16 Max_Low		= 0;//29
 
-extern u16 Data_RF[12];//Store Data
+extern u8 Data_RF[6];//Store Data
 extern u32 Time_Sleep;
 extern u32 Time_ACCL_ON;
 extern u32 Time_Check_Accl;
@@ -77,6 +78,8 @@ u8 Temp_Logic_Change;
 u8 Header_RFID;
 u16 IWDT_Timing=0;
 u8 calibration = 0;
+u8 Chuc=0,DV=0,CRC_Row=0,change =0;
+u8 i,Header = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
@@ -84,7 +87,8 @@ u8 calibration = 0;
 /* Public functions ----------------------------------------------------------*/
 typedef enum _RF433{
 	WAIT_SHORT_BIT,
-	WAIT_LONG_BIT,
+	WAIT_HEADER_BIT,
+	WAIT_SHORT_BIT_2,
 	GET_DATA_RF433,
 	FINISH_RF433
 }ID433SM;
@@ -195,174 +199,72 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
-	 switch(SMRF433)
-		{
-			case WAIT_SHORT_BIT:
-			if(Timing_RF433>25) calibration = 15;
-			if(Timing_RF433>100) calibration = 30;
-			if(Timing_RF433<15) calibration = 5;
-				//if(Timing_RF433 > Min_Low_Sys && Timing_RF433 < Max_Low_Sys && !RF433_STATUS)//Muc 0 nhe
-				if(Timing_RF433 > calibration && !RF433_STATUS)//Muc 0 nhe
-				{
-					Min_Low_433 = Timing_RF433 - calibration;
-					Max_Low_433 = Timing_RF433 + calibration;
-					SMRF433 = WAIT_LONG_BIT;
-				}//Min_High_Sys			
-				break;
-			case WAIT_LONG_BIT://	wait header
-				if(Timing_RF433 > 10*Max_Low_433 && Timing_RF433 < 45*Max_Low_433 && RF433_STATUS)
-				{
-					SMRF433 = GET_DATA_RF433;
-					Local_Bit = 0;
-					Count_Data_RF=0;
-					Sys_Long_Bit = TRUE;
-				}
-				else
-				{
-					SMRF433 = WAIT_SHORT_BIT;
-				}
-				break;
-			case GET_DATA_RF433://	Get data in RFID,
-				if(Timing_RF433>Min_Low_433 && Timing_RF433 < Max_Low_433)//Muc 1 nhe
-				{						
-					Status_Bit[Local_Bit] = FALSE;
-					Local_Bit++;
-					if(Local_Bit==4)
-					{
-						Local_Bit=0;
-						if(Status_Bit[0] == TRUE) Data_RF[Count_Data_RF] = 1;//HIGH
-						else Data_RF[Count_Data_RF] = 2;//FLOAT		
-						Count_Data_RF++;								
-					}
-				}
-				else
-				{
-					if(Sys_Long_Bit)
-					{
-						if(Timing_RF433 > 2*Min_Low_433 && Timing_RF433 < 5*Max_Low_433)
-						{
-							Sys_Long_Bit = FALSE;
-							Min_High_433 = Timing_RF433 - calibration;
-							Max_High_433 = Timing_RF433 + calibration;
-						}
-						else SMRF433 = WAIT_SHORT_BIT;//nhieu thi quay lai tu dau nhe 
-					}
-					if(Timing_RF433 > Min_High_433 && Timing_RF433 < Max_High_433)//Muc 0 nhe
-					{
-						Status_Bit[Local_Bit] = TRUE;
-						Local_Bit++;
-						if(Local_Bit==4)
-						{
-							Local_Bit=0;
-							if(Status_Bit[0] == TRUE) Data_RF[Count_Data_RF] = 3;//1001
-							else if(Status_Bit[1] == TRUE) Data_RF[Count_Data_RF] = 0;//		
-							else Data_RF[Count_Data_RF] = 4;//0011
-							Count_Data_RF++;								
-						}
-					}
-					else SMRF433 = WAIT_SHORT_BIT;//nhieu thi quay lai tu dau nhe
-				}
-				if(Count_Data_RF >=12)
-				{
-					Get_RF433 = TRUE;
-					SMRF433 = FINISH_RF433;
-				}
-				break;
-			case FINISH_RF433://	WAIT_HEADER
-				if(!Get_RF433)SMRF433 = WAIT_SHORT_BIT;
-				break;
-			default: break;				
-		}	// */
-	
-	
-	
-	/*
-	 switch(SMRF433)
-		{
-			case WAIT_SHORT_BIT:
-			if(Timing_RF433>25) calibration = 15;
-			if(Timing_RF433>100) calibration = 30;
-			if(Timing_RF433<15) calibration = 5;
+ switch(SMRF433)
+	{
+		case WAIT_SHORT_BIT:
+			if((Timing_RF433 > Min_Low_433) && (Timing_RF433 < Max_Low_433) && !RF433_STATUS)//Muc 0 nhe
+			{
+				SMRF433 = WAIT_HEADER_BIT;
+				Header = 0;
+				Count_Data_RF =0;
+				Chuc=0;DV=0;CRC_Row =0;change =0;
+				for(i=0;i<6;i++)Data_RF[i] = 0;
+			}		
+			break;
+		case WAIT_HEADER_BIT://	wait header
+			if(Timing_RF433 > Min_High_433 && Timing_RF433 < Max_High_433)
+			{
+				Header++;
+				if(Header>=9) SMRF433 = WAIT_SHORT_BIT_2;
+			}
+			else
+			{
+				SMRF433 = WAIT_SHORT_BIT;
+			}
+			break;
+		case WAIT_SHORT_BIT_2://	Get data in RFID,
+			if(Timing_RF433 > Min_Low_433 && Timing_RF433 < Max_Low_433)//Muc 0 nhe
+			SMRF433 = GET_DATA_RF433;
+			else	
+			SMRF433 = WAIT_SHORT_BIT;	
 			
-			//	if(Timing_RF433 > 20 && Timing_RF433 < 80 && //Muc 0 nhe
-				//if(Timing_RF433 < 50 && !RF433_STATUS)//Muc 0 nhe
-			//	{
-				if(!RF433_STATUS)
-				{
-					Min_Low_433 = Timing_RF433 - calibration;
-					Max_Low_433 = Timing_RF433 + calibration;
-					SMRF433 = WAIT_LONG_BIT;
-				}
-			//	}//Min_High_Sys			
-				break;
-			case WAIT_LONG_BIT://	wait header
-				if(Timing_RF433 > 10*Min_Low_433 && Timing_RF433 < 40*Max_Low_433 && RF433_STATUS)
-				{
-					SMRF433 = GET_DATA_RF433;
-					Local_Bit = 0;
-					Count_Data_RF=0;
-					Sys_Long_Bit = TRUE;
-				}
-				else
-				{
-					SMRF433 = WAIT_SHORT_BIT;
-				}
-				break;
-			case GET_DATA_RF433://	Get data in RFID,
-				if(Timing_RF433>Min_Low_433 && Timing_RF433 < Max_Low_433)//Muc 1 nhe
-				{						
-					Status_Bit[Local_Bit] = FALSE;
-					Local_Bit++;
-					if(Local_Bit==4)
-					{
-						Local_Bit=0;
-						if(Status_Bit[0] == TRUE) Data_RF[Count_Data_RF] = 1;//HIGH
-						else Data_RF[Count_Data_RF] = 2;//FLOAT		
-						Count_Data_RF++;								
-					}
-				}
-				else
-				{
-					if(Sys_Long_Bit)
-					{
-						if(Timing_RF433 > 2*Min_Low_433 && Timing_RF433 < 5*Max_Low_433)
-						{
-							Sys_Long_Bit = FALSE;
-							Min_High_433 = Timing_RF433 - calibration;
-							Max_High_433 = Timing_RF433 + calibration;
-						}
-						else SMRF433 = WAIT_SHORT_BIT;//nhieu thi quay lai tu dau nhe 
-					}
-					if(Timing_RF433 > Min_High_433 && Timing_RF433 < Max_High_433)//Muc 0 nhe
-					{
-						Status_Bit[Local_Bit] = TRUE;
-						Local_Bit++;
-						if(Local_Bit==4)
-						{
-							Local_Bit=0;
-							if(Status_Bit[0] == TRUE) Data_RF[Count_Data_RF] = 3;//1001
-							else if(Status_Bit[1] == TRUE) Data_RF[Count_Data_RF] = 0;//		
-							else Data_RF[Count_Data_RF] = 4;//0011
-							Count_Data_RF++;								
-						}
-					}
-					else SMRF433 = WAIT_SHORT_BIT;//nhieu thi quay lai tu dau nhe
-				}
-				if(Count_Data_RF >=12)
-				{
-					Get_RF433 = TRUE;
-					SMRF433 = FINISH_RF433;
-				}
-				break;
-			case FINISH_RF433://	WAIT_HEADER
-				if(!Get_RF433)SMRF433 = WAIT_SHORT_BIT;
-				break;
-			default: break;				
-		}
-//		*/
-    /*
-		if(!Get_RF433)Data_RF[Count_Data_RF++]= Timing_RF433;
-	if(Count_Data_RF>=10) {Count_Data_RF=0;Get_RF433=TRUE;} //*/
+			break;
+		case GET_DATA_RF433://	Get data in RFID,
+			if(DV!=4) Data_RF[Chuc]=Data_RF[Chuc]<<1;
+			
+			if(Timing_RF433 > Min_Low_433 && Timing_RF433 < Max_Low_433)//Muc 0 nhe
+			{
+				i=0;
+				//Data_RF[Count_Data_RF] = 0;
+			}
+			else if(Timing_RF433 > Min_High_433 && Timing_RF433 < Max_High_433)//muc 1 nhe.
+			{
+				//Data_RF[Count_Data_RF] = 1;
+				if(DV!=4)Data_RF[Chuc]++;
+				CRC_Row++;
+			}
+			else	SMRF433 = WAIT_SHORT_BIT;
+			
+			Count_Data_RF++;
+			DV++;//Chuc=0,
+			if(DV == 5)
+			{
+				if(CRC_Row == 1 || CRC_Row ==3 ||CRC_Row ==5) SMRF433 = WAIT_SHORT_BIT;//false crc
+				DV = 0;change++;
+				if(change==2){Chuc++;change=0;}
+				CRC_Row = 0;
+			}
+			if(Count_Data_RF >=60)
+			{
+				Get_RF433 = TRUE;
+				SMRF433 = FINISH_RF433;
+			}
+			break;
+		case FINISH_RF433://	WAIT_HEADER
+			if(!Get_RF433)SMRF433 = WAIT_SHORT_BIT;
+			break;
+		default: break;				
+	}//*/	
 	Timing_RF433=0;						
 }	
 	/*
