@@ -34,10 +34,10 @@ u16 Min_High_433 = 0;
 u16 Max_High_433 = 0; */
 
 u16 Min_Low_433 = 5;
-u16 Max_Low_433 = 50;
+u16 Max_Low_433 = 60;
 
 u16 Min_High_433 = 80;
-u16 Max_High_433 = 150;
+u16 Max_High_433 = 200;
 //u16 Min_Low_Sys = 30;//30
 //u16 Max_Low_Sys  =200;//50
 //u16 Min_High_Sys=  500;//1330

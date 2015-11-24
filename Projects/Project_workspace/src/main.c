@@ -179,9 +179,8 @@ bool Exit_Learning_tag= FALSE;
 bool Have_Accl = FALSE;
 bool Wdt_Reset = FALSE;
 u8  ACCL_EN = 0;
-uint8_t Check_Dat;
 //bool Data_Accl[8]= {FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE};
-//u8 Data_Accl=0;
+u8 Data_Accl=0;
 
 u8 Data_RF[6];
 //u16 Data_RF[12];
@@ -246,7 +245,7 @@ void main(void)
 		CLK_SYSCLKConfig(CLK_PRESCALER_HSIDIV1); 
 		CLK_FastHaltWakeUpCmd (ENABLE);
 		FLASH_Lock(FLASH_MEMTYPE_PROG);
-		/*UART1_Init((uint32_t)9600, UART1_WORDLENGTH_8D, UART1_STOPBITS_1, UART1_PARITY_NO,
+		/*UART1_Init((uint32_t)115200, UART1_WORDLENGTH_8D, UART1_STOPBITS_1, UART1_PARITY_NO,
               UART1_SYNCMODE_CLOCK_DISABLE, UART1_MODE_TXRX_ENABLE);							
 	 	Output a message on Hyperterminal using printf function */
 		//printf("V: 14-04\n\r");
