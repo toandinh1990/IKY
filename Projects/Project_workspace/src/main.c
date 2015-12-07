@@ -141,9 +141,9 @@ u32 Time_Wdt_Soft=0;
 u32 Time_ACCL_ON= 0;
 u32 Time_Check_Accl = 0;
 u32 Time_Signal = 0; //En_Signal
-//u8 Data_RFID[5]= {0,0,0,0,0};
-u16 Data_RFID[5]= {0,0,0,0,0};
-uint8_t Sig_Left=0,Sig_Right=0;
+u8 Data_RFID[5]= {0,0,0,0,0};
+//u16 Data_RFID[5]= {0,0,0,0,0};
+uint8_t Sig_Left=0,Sig_Right=0,Check_Dat = 0;
 bool Tag_Admin[5] = {TRUE,TRUE,TRUE,TRUE,TRUE};
 bool Tag_Master = TRUE;
 bool Wait_RF = FALSE;
@@ -180,10 +180,13 @@ bool Have_Accl = FALSE;
 bool Wdt_Reset = FALSE;
 u8  ACCL_EN = 0;
 //bool Data_Accl[8]= {FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE,FALSE};
-u8 Data_Accl=0;
+u8 Data_Accl = 0;
 
-u8 Data_RF[6];
-//u16 Data_RF[12];
+//u8 Data_RF[6];
+//u8 Data_RF[6];
+u16 Data_RF[12];
+
+u16 temp[5];
 //u8 Data_433[3];
 
 u8 State_433 = 0;
@@ -245,9 +248,10 @@ void main(void)
 		CLK_SYSCLKConfig(CLK_PRESCALER_HSIDIV1); 
 		CLK_FastHaltWakeUpCmd (ENABLE);
 		FLASH_Lock(FLASH_MEMTYPE_PROG);
-		/*UART1_Init((uint32_t)115200, UART1_WORDLENGTH_8D, UART1_STOPBITS_1, UART1_PARITY_NO,
+	
+		UART1_Init((uint32_t)115200, UART1_WORDLENGTH_8D, UART1_STOPBITS_1, UART1_PARITY_NO,
               UART1_SYNCMODE_CLOCK_DISABLE, UART1_MODE_TXRX_ENABLE);							
-	 	Output a message on Hyperterminal using printf function */
+//	/*	 	Output a message on Hyperterminal using printf function */
 		//printf("V: 14-04\n\r");
 		//printf("Athor: TDX\n\r");
 		//printf("Create:07-04-2014\n\r");
@@ -371,58 +375,89 @@ void main(void)
 		GPIO_Init(ENGINE_PORT, ENGINE_PIN, GPIO_MODE_OUT_PP_LOW_FAST);
 		RFID_ON;
 	}
-
-
-		
-		/*while(1)
-	{
-			if(ACC)
-			{
-			GPIO_WriteHigh(BELL_PORT, BELL_PIN);// On  Bell
-			GPIO_WriteHigh(ENGINE_PORT, ENGINE_PIN);// On  Bell
-			GPIO_WriteHigh(SIGNAL_PORT, SIGNAL_PIN);// On  Bell
-			}
-			else
-			{
-				GPIO_WriteLow(BELL_PORT, BELL_PIN);// Off Bell
-				GPIO_WriteLow(ENGINE_PORT, ENGINE_PIN);// Off Bell
-				GPIO_WriteLow(SIGNAL_PORT, SIGNAL_PIN);// Off Bell
-			}
-	}// */
-	/*
-		GPIO_WriteLow(ACCL_EN_PORT, ACCL_EN_PIN);// bat nguon accl
-		MMA7660_Init();
-		ACCL_EN = 1;
-			if(Have_Accl)
-			{
-				//printf("Have ACCL");
-				Have_Accl = 0;
-				GPIO_WriteHigh(SIGNAL_PORT, SIGNAL_PIN);// Off Bell
-				Delay(50000); 
-				GPIO_WriteLow(SIGNAL_PORT, SIGNAL_PIN);// On  Bell	
-				Delay(50000);				
-				MMA7660_Read(TILT_REG);
-			}
-			while(1)
-		{
-			if(Get_Data_RF433())
-			{
-					GPIO_WriteHigh(SIGNAL_PORT, SIGNAL_PIN);// Off Bell
-					Delay(50000); 
-					GPIO_WriteLow(SIGNAL_PORT, SIGNAL_PIN);// On  Bell	
-					Delay(50000);		
-			}
-		}//*/
-		/*
-		them ham if reset vao day la okie nhe.
-		neu wdt thi Enable_Ring = false va 	SMSTATUS = 	ENG_ON_TAG
-		neu do bat nguon thi Enable_Ring = true va SMSTATUS = 	ENG_ON_NO_TAG
-		/// */
 		
 		while(1)
 		{
 			Time_Wdt_Soft = 0;
-			// /*
+			if(Get_RF433)
+			{
+//				printf("Data:\r\n");
+			//	for(i=0;i<12;i++) printf("%d|",(u16)Data_RF[i]);
+
+
+				/* Write a character to the UART1 */
+				UART1_SendData8('D');
+				/* Loop until the end of transmission */
+				while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);			
+				/* Write a character to the UART1 */
+				UART1_SendData8('a');
+				/* Loop until the end of transmission */
+				while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);
+				/* Write a character to the UART1 */
+				UART1_SendData8('t');
+				/* Loop until the end of transmission */
+				while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);			
+				/* Write a character to the UART1 */
+				UART1_SendData8('a');
+				/* Loop until the end of transmission */
+				while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);
+				UART1_SendData8(0x0D);
+				/* Loop until the end of transmission */
+				while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);				
+				
+				for(i=0;i<12;i++) //2535
+				{
+					
+					temp[0] = Data_RF[i]/1000;  //2 
+					temp[1] = Data_RF[i]%1000; //535
+					
+					temp[2] = temp[1]/100; // 5
+					
+					temp[3] =temp[1]%100; //35
+					
+					temp[4] = temp[3]/10;// 3
+					
+					temp[3] =temp[3]%10; //5
+					
+					if(temp[0] !=0)
+					{
+						UART1_SendData8(temp[0]+0x30);
+						/* Loop until the end of transmission */
+						while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);	
+					}
+					if(temp[2] != 0 || temp[0] != 0)
+					{
+						UART1_SendData8(temp[2]+0x30);
+						/* Loop until the end of transmission */
+						while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);	
+					}
+					if(temp[4] != 0 ||temp[2] != 0 || temp[0] != 0)
+					{
+						UART1_SendData8(temp[4]+0x30);
+						/* Loop until the end of transmission */
+						while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);	
+					}
+					if(temp[3] != 0 ||temp[4] != 0 || temp[2] != 0 || temp[0] != 0)
+					{
+						UART1_SendData8(temp[3]+0x30);
+						/* Loop until the end of transmission */
+						while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);	
+					}
+					
+					UART1_SendData8('|');
+					/* Loop until the end of transmission */
+					while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);				
+				}
+					
+				while (UART1_GetFlagStatus(UART1_FLAG_TXE) == RESET);
+				UART1_SendData8(0x0D);
+
+
+			
+				Delay(50000);
+				Get_RF433 = FALSE;
+			}
+			 /*
 			switch(SMSTATUS)
 			{
 				case ENG_ON_NO_TAG://bat may chua quet the
@@ -549,7 +584,7 @@ void main(void)
 						Sig_Left =0;Sig_Right=0;
 					}
 					
-					/* turn off engine
+				 turn off engine
 					j = Process_433();
 					if(j==2)
 					{
@@ -569,7 +604,9 @@ void main(void)
 							}
 						}
 						else Wait_RF = FALSE;
-					}// */				
+					}// 	
+
+
 					Time_Sleep = 0;
 					Count2Sleep = 0;
 					// bat tat coi o day ne.
@@ -577,7 +614,7 @@ void main(void)
 					GPIO_WriteHigh(BELL_PORT, BELL_PIN);// On  Bell
 					else
 					GPIO_WriteLow(BELL_PORT, BELL_PIN);// Off Bell	
-// /*					
+		
 					break;
 				case ENG_OFF_NO_TAG://Tat may chua quet the
 					if(Process_Tag()) 
@@ -640,21 +677,6 @@ void main(void)
 						}
 						MMA7660_Read(TILT_REG);
 					}
-					/*
-					if(Get_RF433)//test remote.
-					{
-						for(i=0;i<3;i++)
-						{
-							GPIO_WriteHigh(BELL_PORT, BELL_PIN);// On  Bell											
-							GPIO_WriteHigh(SIGNAL_PORT, SIGNAL_PIN);// On  Bell
-							Delay(30000);
-							GPIO_WriteLow(SIGNAL_PORT, SIGNAL_PIN);// Off Bell
-							GPIO_WriteLow(BELL_PORT, BELL_PIN);// Off Bell
-							Delay(30000);
-						}
-						Get_RF433 = FALSE;					
-					}
-					*/
 					j = Process_433();
 __Thoat: 						
 					if(j==2)//user tag 433
@@ -704,36 +726,6 @@ __Thoat:
 				default:break;
 			}
 			Check_SM_Status();// */
-			 /*
-			while(1)
-			{
-				// if(Get_Id()) printf("Have tag\r\n");
-				
-			
-					if(Get_Data_RF433())
-{					printf("Have RF433\r\n");
-							for(i=0;i<2;i++)
-							{
-								GPIO_WriteHigh(BELL_PORT, BELL_PIN);// On  Bell											
-								GPIO_WriteHigh(SIGNAL_PORT, SIGNAL_PIN);// On  Bell
-								Delay(30000);
-								GPIO_WriteLow(SIGNAL_PORT, SIGNAL_PIN);// Off Bell
-								GPIO_WriteLow(BELL_PORT, BELL_PIN);// Off Bell
-								Delay(30000);
-							}
-
-} 
-			
-				if(Get_RF433)
-				{
-					for(i=0;i<10;i++)
-					printf("%d|",Data_RF[i]);
-					printf("\r\n");
-					Delay(100000);
-					Get_RF433 = FALSE;
-				} 
-				
-			}//*/	
 		}
 	}
 PUTCHAR_PROTOTYPE

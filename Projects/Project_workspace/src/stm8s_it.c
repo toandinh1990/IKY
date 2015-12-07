@@ -48,7 +48,9 @@ u16 Max_High	= 0;//60
 u16 Min_Low		= 0;//15
 u16 Max_Low		= 0;//29
 
-extern u8 Data_RF[6];//Store Data
+//extern u8 Data_RF[6];//Store Data
+extern u16 Data_RF[12];
+
 extern u32 Time_Sleep;
 extern u32 Time_ACCL_ON;
 extern u32 Time_Check_Accl;
@@ -199,6 +201,7 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
   /* In order to detect unexpected events during development,
      it is recommended to set a breakpoint on the following instruction.
   */
+	/*
  switch(SMRF433)
 	{
 		case WAIT_SHORT_BIT:
@@ -265,6 +268,9 @@ INTERRUPT_HANDLER(EXTI_PORTA_IRQHandler, 3)
 			break;
 		default: break;				
 	}//*/	
+	
+	if(!Get_RF433) Data_RF[Count_Data_RF++] = Timing_RF433;
+	if(Count_Data_RF>=12) {Count_Data_RF = 0;Get_RF433 = TRUE;}
 	Timing_RF433=0;						
 }	
 	/*
